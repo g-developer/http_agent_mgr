@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 	"encoding/json"
+		"math/rand"
 )
 
 type NgxApi interface {
@@ -57,7 +58,7 @@ func normal (count int) string {
 		if 0 == i % 2 {
 			str += "down;\n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	return str
@@ -70,7 +71,7 @@ func ipHash (count int) string {
 		if 0 == i % 2 {
 			str += "down;\n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	return str
@@ -93,7 +94,7 @@ func firstEnter (w http.ResponseWriter, r *http.Request) {
 		if 0 == i % 2 {
 			str += "down;\n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	w.Write([]byte(str))
@@ -108,7 +109,7 @@ func firstBlank (w http.ResponseWriter, r *http.Request) {
 		if 0 == i % 2 {
 			str += "down;\n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	w.Write([]byte(str))
@@ -123,7 +124,7 @@ func middleEnter (w http.ResponseWriter, r *http.Request) {
 		if 0 == i % 2 {
 			str += "down;\n\n\n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	w.Write([]byte(str))
@@ -135,16 +136,16 @@ func middleBlank (w http.ResponseWriter, r *http.Request) {
 	str := ""
 	for i:=0; i<10; i++ {
 		if i == 5 {
-			str += fmt.Sprintf("           server       127.0.0.%v:8080 weight=2 ", i)
+			str += fmt.Sprintf("           server       127.0.0.%v:8080 weight=2 ;\n", i)
 		} else {
 			if i == 8 {
-				str += fmt.Sprintf("	server	127.0.0.%v:8080	weight=2	", i)
+				str += fmt.Sprintf("	server	127.0.0.%v:8080	weight=2	;\n", i)
 			} else {
 			str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
 			if 0 == i % 2 {
-				str += "down;\n\n\n"
+				str += "down;\n"
 			} else {
-				str += "up;\n"
+				str += ";\n"
 			}
 			}
 		}
@@ -159,9 +160,9 @@ func multiFenhao (w http.ResponseWriter, r *http.Request) {
 	for i:=0; i<10; i++ {
 		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
 		if 0 == i % 2 {
-			str += "down;;;;;;;"
+			str += "down;;;;;;;\n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	w.Write([]byte(str))
@@ -176,7 +177,7 @@ func comments (w http.ResponseWriter, r *http.Request) {
 		if 0 == i % 2 {
 			str += "down; #test----- \n"
 		} else {
-			str += "up;\n"
+			str += ";\n"
 		}
 	}
 	str += "#test------ server 127.0.0.%v:8080 weight=2\n"
@@ -192,7 +193,7 @@ func oneline (w http.ResponseWriter, r *http.Request) {
 		if 0 == i % 2 {
 			str += "down;"
 		} else {
-			str += "up;"
+			str += ";"
 		}
 	}
 	w.Write([]byte(str))
@@ -206,12 +207,44 @@ func costgt10 (w http.ResponseWriter, r *http.Request) {
 	for i:=0; i<10; i++ {
 		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
 		if 0 == i % 2 {
-			str += "down;"
+			str += "down;\n"
 		} else {
-			str += "up;"
+			str += ";\n"
 		}
 	}
 	time.Sleep(15 * time.Second)
+	w.Write([]byte(str))
+}
+
+//偶尔超时
+func randomtimeout (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;\n"
+		} else {
+			str += ";\n"
+		}
+	}
+	s := rand.Intn(15)
+	time.Sleep(time.Duration(s) * time.Second)
+	w.Write([]byte(str))
+}
+
+//总在变化
+func random (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", rand.Intn(250))
+		if 0 == i % 2 {
+			str += "down;\n"
+		} else {
+			str += ";\n"
+		}
+	}
 	w.Write([]byte(str))
 }
 
@@ -276,6 +309,8 @@ func main () {
 	server.AddHandler("costgt10", costgt10)
 	server.AddHandler("iphash", ipHashApi)
 	server.AddHandler("multiFenhao", multiFenhao)
+	server.AddHandler("randomtimeout", randomtimeout)
+	server.AddHandler("random", random)
 	if nil != err {
 		fmt.Println("Add Handler Error!", err)
 	}
