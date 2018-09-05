@@ -84,14 +84,82 @@ func getApis (w http.ResponseWriter, r *http.Request) {
 }
 
 
-//数据前几行为空
-func firstBlank (w http.ResponseWriter, r *http.Request) {
+//数据前几行换行
+func firstEnter (w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	str := "\n\n\n\n"
 	for i:=0; i<10; i++ {
 		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
 		if 0 == i % 2 {
 			str += "down;\n"
+		} else {
+			str += "up;\n"
+		}
+	}
+	w.Write([]byte(str))
+}
+
+//数据前几行换行
+func firstBlank (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := `             `
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;\n"
+		} else {
+			str += "up;\n"
+		}
+	}
+	w.Write([]byte(str))
+}
+
+//数据中间换行
+func middleEnter (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;\n\n\n"
+		} else {
+			str += "up;\n"
+		}
+	}
+	w.Write([]byte(str))
+}
+
+//数据中间为空
+func middleBlank (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		if i == 5 {
+			str += fmt.Sprintf("           server       127.0.0.%v:8080 weight=2 ", i)
+		} else {
+			if i == 8 {
+				str += fmt.Sprintf("	server	127.0.0.%v:8080	weight=2	", i)
+			} else {
+			str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+			if 0 == i % 2 {
+				str += "down;\n\n\n"
+			} else {
+				str += "up;\n"
+			}
+			}
+		}
+	}
+	w.Write([]byte(str))
+}
+
+//数据多个分号
+func multiFenhao (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;;;;;;;"
 		} else {
 			str += "up;\n"
 		}
@@ -199,11 +267,15 @@ func main () {
 	server.AddDefaultHandler()
 	server.AddHandler("apis", getApis)
 	err := server.AddHandler("add", apis)
+	server.AddHandler("firstenter", firstEnter)
+	server.AddHandler("middlerenter", middleEnter)
 	server.AddHandler("firstblank", firstBlank)
+	server.AddHandler("middlerblank", middleBlank)
 	server.AddHandler("comments", comments)
 	server.AddHandler("oneline", oneline)
 	server.AddHandler("costgt10", costgt10)
 	server.AddHandler("iphash", ipHashApi)
+	server.AddHandler("multiFenhao", multiFenhao)
 	if nil != err {
 		fmt.Println("Add Handler Error!", err)
 	}
