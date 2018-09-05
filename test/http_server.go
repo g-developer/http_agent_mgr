@@ -18,7 +18,6 @@ type NgxApi interface {
 
 type Api struct {
 	Name string
-	Balance string
 	Per int
 	Sleep int64
 	Degree string
@@ -27,17 +26,12 @@ type Api struct {
 var mutex = &sync.Mutex{}
 var allIps = map[string]*Api{}
 
-func NewApi (balance string, name string, per int, sleep int64, degree string) *Api {
-	return &Api{name, balance, per, sleep, degree}
+func NewApi (name string, per int, sleep int64, degree string) *Api {
+	return &Api{name, per, sleep, degree}
 }
 
 func (self *Api) Strategy () string {
-	res := ""
-	switch self.Balance {
-	case "iphash" : res = ipHash(self.Per)
-	//case "fair" : return fair(self.Count)
-	//case "" : return weight(self.Count)
-	}
+	res := normal(self.Per)
 	return res
 }
 
@@ -55,6 +49,19 @@ func (self *Api) Serve (w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(strBody))
 }
 
+
+func normal (count int) string {
+	str := ""
+	for i:=0; i<count; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;\n"
+		} else {
+			str += "up;\n"
+		}
+	}
+	return str
+}
 
 func ipHash (count int) string {
 	str := "ip_hash;\n"
@@ -76,20 +83,87 @@ func getApis (w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(resp))
 }
 
+
+//数据前几行为空
+func firstBlank (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := "\n\n\n\n"
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;\n"
+		} else {
+			str += "up;\n"
+		}
+	}
+	w.Write([]byte(str))
+}
+
+//数据注释
+func comments (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := "#test\n"
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down; #test----- \n"
+		} else {
+			str += "up;\n"
+		}
+	}
+	str += "#test------ server 127.0.0.%v:8080 weight=2\n"
+	w.Write([]byte(str))
+}
+
+//所有数据一行
+func oneline (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;"
+		} else {
+			str += "up;"
+		}
+	}
+	w.Write([]byte(str))
+}
+
+
+//超时过10s
+func costgt10 (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ""
+	for i:=0; i<10; i++ {
+		str += fmt.Sprintf("server 127.0.0.%v:8080 weight=2 ", i)
+		if 0 == i % 2 {
+			str += "down;"
+		} else {
+			str += "up;"
+		}
+	}
+	time.Sleep(15 * time.Second)
+	w.Write([]byte(str))
+}
+
+//带策略
+func ipHashApi (w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	str := ipHash(10)
+	w.Write([]byte(str))
+}
+
 func apis (w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	r.ParseForm()
 	prefix := "zyc"
 	var sleep int64 = 0
-	balance := ""
 	degree := "second"
 	count := 1
 	per := 10
 	if 0 < len(r.Form["prefix"]) {
 		prefix = r.Form["prefix"][0]
-	}
-	if 0 < len(r.Form["balance"]) {
-		balance = r.Form["balance"][0]
 	}
 	if 0 < len(r.Form["per"]) {
 		per, _ = strconv.Atoi(r.Form["per"][0])
@@ -106,7 +180,7 @@ func apis (w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	for i:=0; i<count; i++ {
 		name := prefix + "." + strconv.Itoa(i)
-		apiTmp := NewApi(balance, name, per, sleep, degree)
+		apiTmp := NewApi(name, per, sleep, degree)
 		go func(Name string, tmp *Api) {
 			server.AddHandler(Name, tmp.Serve)
 			allIps[name] = apiTmp
@@ -125,6 +199,11 @@ func main () {
 	server.AddDefaultHandler()
 	server.AddHandler("apis", getApis)
 	err := server.AddHandler("add", apis)
+	server.AddHandler("firstblank", firstBlank)
+	server.AddHandler("comments", comments)
+	server.AddHandler("oneline", oneline)
+	server.AddHandler("costgt10", costgt10)
+	server.AddHandler("iphash", ipHashApi)
 	if nil != err {
 		fmt.Println("Add Handler Error!", err)
 	}
